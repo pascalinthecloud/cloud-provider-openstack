@@ -25,7 +25,7 @@ jobs:
             REGISTRY: pascaaal
             VERSION: latest
             IMAGE_NAMES: octavia-ingress-controller
-        run: make build-local-image-openstack-cloud-controller-manager
+        run: make build-local-image-octavia-ingress-controller
 
     - name: Push Docker image to Docker Hub
       run: docker push ${{ secrets.DOCKER_USERNAME }}/octavia-ingress-controller:latest

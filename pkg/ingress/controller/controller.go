@@ -773,9 +773,13 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	timeoutTCPInspect := maybeGetIntFromIngressAnnotation(ing, IngressAnnotationTimeoutTCPInspect)
 
 	listenerAllowedCIDRs := strings.Split(sourceRanges, ",")
-	listener, err := c.osClient.EnsureListener(resName, lb.ID, secretRefs, listenerAllowedCIDRs, timeoutClientData, timeoutMemberData, timeoutTCPInspect, timeoutMemberConnect)
+	listener, err := c.osClient.EnsureListener(resName, lb.ID, port, secretRefs, listenerAllowedCIDRs, timeoutClientData, timeoutMemberData, timeoutTCPInspect, timeoutMemberConnect)
 	if err != nil {
 		return err
+	}
+	// Ensure HTTP listener for HTTP to HTTPS redirect
+	if port == 443 {
+		logger.Info("INFO: here will the http listener be run")
 	}
 
 	// get nodes information and prepare update member params.

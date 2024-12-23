@@ -783,7 +783,8 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	// Ensure HTTP listener for HTTP to HTTPS redirect
 	if port == 443 {
 		logger.Info("INFO: here will the http listener will be created...")
-		listenerHttpRedirect, errHttpRedirect = c.osClient.EnsureListener(resName, lb.ID, 80, secretRefs, listenerAllowedCIDRs, timeoutClientData, timeoutMemberData, timeoutTCPInspect, timeoutMemberConnect)
+		httpListenerName := fmt.Sprintf("%s-http", resName)
+		listenerHttpRedirect, errHttpRedirect = c.osClient.EnsureListener(httpListenerName, lb.ID, 80, secretRefs, listenerAllowedCIDRs, timeoutClientData, timeoutMemberData, timeoutTCPInspect, timeoutMemberConnect)
 	}
 
 	// get nodes information and prepare update member params.

@@ -791,6 +791,9 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	if err != nil {
 		return err
 	}
+	if errHttpRedirect != nil {
+		return errHttpRedirect
+	}
 	var updateMemberOpts []pools.BatchUpdateMemberOpts
 	for _, node := range nodeObjs {
 		addr, err := getNodeAddressForLB(node)
@@ -815,8 +818,8 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	var newPools []openstack.IngPool
 	var newPolicies []openstack.IngPolicy
 	var oldPolicies []openstack.ExistingPolicy
-	var newPoolsHttpRedirect []openstack.IngPool
-	var newPoliciesHttpRedirect []openstack.IngPolicy
+	// var newPoolsHttpRedirect []openstack.IngPool
+	// var newPoliciesHttpRedirect []openstack.IngPolicy
 	var oldPoliciesHttpRedirect []openstack.ExistingPolicy
 
 	existingPolicies, err := openstackutil.GetL7policies(c.osClient.Octavia, listener.ID)
@@ -853,7 +856,7 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	if err != nil {
 		return fmt.Errorf("failed to get pools from load balancer %s, error: %v", lb.ID, err)
 	}
-	existingPoolsHttpRedirect, err := openstackutil.GetPools(c.osClient.Octavia, lb.ID)
+	// existingPoolsHttpRedirect, err := openstackutil.GetPools(c.osClient.Octavia, lb.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get pools from load balancer %s, error: %v", lb.ID, err)
 	}

@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/l7policies"
+	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/listeners"
 	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/pools"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/security/groups"
 	log "github.com/sirupsen/logrus"
@@ -777,9 +778,12 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	if err != nil {
 		return err
 	}
+	var listenerHttpRedirect *listeners.Listener
+	var errHttpRedirect error
 	// Ensure HTTP listener for HTTP to HTTPS redirect
 	if port == 443 {
-		logger.Info("INFO: here will the http listener be run")
+		logger.Info("INFO: here will the http listener will be created...")
+		listenerHttpRedirect, errHttpRedirect = c.osClient.EnsureListener(resName, lb.ID, 80, secretRefs, listenerAllowedCIDRs, timeoutClientData, timeoutMemberData, timeoutTCPInspect, timeoutMemberConnect)
 	}
 
 	// get nodes information and prepare update member params.
@@ -811,8 +815,12 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 	var newPools []openstack.IngPool
 	var newPolicies []openstack.IngPolicy
 	var oldPolicies []openstack.ExistingPolicy
+	var newPoolsHttpRedirect []openstack.IngPool
+	var newPoliciesHttpRedirect []openstack.IngPolicy
+	var oldPoliciesHttpRedirect []openstack.ExistingPolicy
 
 	existingPolicies, err := openstackutil.GetL7policies(c.osClient.Octavia, listener.ID)
+	existingPoliciesHttpRedirect, err := openstackutil.GetL7policies(c.osClient.Octavia, listenerHttpRedirect.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get l7 policies for listener %s", listener.ID)
 	}
@@ -826,8 +834,26 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 			Rules:  rules,
 		})
 	}
+	//for http redirect listener
+	if err != nil {
+		return fmt.Errorf("failed to get l7 policies for listener %s", listenerHttpRedirect.ID)
+	}
+	for _, policyHttpRedirect := range existingPoliciesHttpRedirect {
+		rules, err := openstackutil.GetL7Rules(c.osClient.Octavia, policyHttpRedirect.ID)
+		if err != nil {
+			return fmt.Errorf("failed to get l7 rules for policy %s", policyHttpRedirect.ID)
+		}
+		oldPoliciesHttpRedirect = append(oldPoliciesHttpRedirect, openstack.ExistingPolicy{
+			Policy: policyHttpRedirect,
+			Rules:  rules,
+		})
+	}
 
 	existingPools, err := openstackutil.GetPools(c.osClient.Octavia, lb.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get pools from load balancer %s, error: %v", lb.ID, err)
+	}
+	existingPoolsHttpRedirect, err := openstackutil.GetPools(c.osClient.Octavia, lb.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get pools from load balancer %s, error: %v", lb.ID, err)
 	}
@@ -857,6 +883,17 @@ func (c *Controller) ensureIngress(ing *nwv1.Ingress) error {
 				Protocol:    "HTTP",
 				LBMethod:    pools.LBMethodRoundRobin,
 				ListenerID:  listener.ID,
+				Persistence: nil,
+			},
+			PoolMembers: members,
+		})
+		newPools = append(newPools, openstack.IngPool{
+			Name: poolName,
+			Opts: pools.CreateOpts{
+				Name:        poolName,
+				Protocol:    "HTTP",
+				LBMethod:    pools.LBMethodRoundRobin,
+				ListenerID:  listenerHttpRedirect.ID,
 				Persistence: nil,
 			},
 			PoolMembers: members,
